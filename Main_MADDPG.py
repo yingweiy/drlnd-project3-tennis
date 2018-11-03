@@ -82,7 +82,9 @@ def main():
     for episode in range(0, number_of_episodes):
         timer.update(episode)
         reward_this_episode = np.zeros((number_of_agents, 3))
-        all_obs = env.reset() #
+        all_obs, env_info = env.reset()
+        print('Reset All Obs:')
+        print(all_obs)
         obs, obs_full = transpose_list(all_obs)
 
         for episode_t in range(episode_length):
