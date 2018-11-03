@@ -16,8 +16,8 @@ class MADDPG:
 
         # critic input = obs_full + actions = 14+2+2+2=20
         self.maddpg_agent = [DDPGAgent(14, 16, 8, 2, 20, 32, 16), 
-                             DDPGAgent(14, 16, 8, 2, 20, 32, 16), 
-                             DDPGAgent(14, 16, 8, 2, 20, 32, 16)]
+                             DDPGAgent(14, 16, 8, 2, 20, 32, 16)
+                             ]
         
         self.discount_factor = discount_factor
         self.tau = tau

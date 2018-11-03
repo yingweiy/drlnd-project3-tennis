@@ -1,7 +1,7 @@
 # main function that sets up environments
 # perform training loop
 
-import envs
+from UnityEnvWrapper import TennisEnv
 from buffer import ReplayBuffer
 from maddpg import MADDPG
 import torch
@@ -9,9 +9,6 @@ import numpy as np
 from tensorboardX import SummaryWriter
 import os
 from utilities import transpose_list, transpose_to_tensor
-
-# keep training awake
-from workspace_utils import keep_awake
 
 # for saving gif
 import imageio
@@ -35,7 +32,7 @@ def pre_process(entity, batchsize):
 def main():
     seeding()
     # number of parallel agents
-    parallel_envs = 4
+    number_of_agents = 2
     # number of training episodes.
     # change this to higher number to experiment. say 30000.
     number_of_episodes = 1000
@@ -51,15 +48,17 @@ def main():
     noise_reduction = 0.9999
 
     # how many episodes before update
-    episode_per_update = 2 * parallel_envs
+    episode_per_update = 2 * number_of_agents
 
     log_path = os.getcwd()+"/log"
     model_dir= os.getcwd()+"/model_dir"
     
     os.makedirs(model_dir, exist_ok=True)
 
-    torch.set_num_threads(parallel_envs)
-    env = envs.make_parallel_env(parallel_envs)
+    # do we need to set multi-thread for this env?
+    torch.set_num_threads(number_of_agents)
+
+    env = TennisEnv()
     
     # keep 5000 episodes worth of replay
     buffer = ReplayBuffer(int(5000*episode_length))
@@ -69,7 +68,6 @@ def main():
     logger = SummaryWriter(log_dir=log_path)
     agent0_reward = []
     agent1_reward = []
-    agent2_reward = []
 
     # training loop
     # show progressbar
@@ -81,29 +79,14 @@ def main():
 
     # use keep_awake to keep workspace from disconnecting
     #for episode in keep_awake(range(0, number_of_episodes, parallel_envs)):
-    for episode in range(0, number_of_episodes, parallel_envs):
-
+    for episode in range(0, number_of_episodes):
         timer.update(episode)
-
-        reward_this_episode = np.zeros((parallel_envs, 3))
+        reward_this_episode = np.zeros((number_of_agents, 3))
         all_obs = env.reset() #
         obs, obs_full = transpose_list(all_obs)
 
-        #for calculating rewards for this particular episode - addition of all time steps
-
-        # save info or not
-        save_info = ((episode) % save_interval < parallel_envs or episode==number_of_episodes-parallel_envs)
-        frames = []
-        tmax = 0
-        
-        if save_info:
-            frames.append(env.render('rgb_array'))
-        
         for episode_t in range(episode_length):
-
-            t += parallel_envs
-            
-
+            t += 1
             # explore = only explore for a certain number of episodes
             # action input needs to be transposed
             actions = maddpg.act(transpose_to_tensor(obs), noise=noise)
@@ -127,25 +110,16 @@ def main():
             reward_this_episode += rewards
 
             obs, obs_full = next_obs, next_obs_full
-            
-            # save gif frame
-            if save_info:
-                frames.append(env.render('rgb_array'))
-                tmax+=1
-        
+
         # update once after every episode_per_update
-        if len(buffer) > batchsize and episode % episode_per_update < parallel_envs:
+        if len(buffer) > batchsize and episode % episode_per_update==0:
             for a_i in range(3):
                 samples = buffer.sample(batchsize)
                 maddpg.update(samples, a_i, logger)
             maddpg.update_targets() #soft update the target network towards the actual networks
 
-        
-        
-        for i in range(parallel_envs):
-            agent0_reward.append(reward_this_episode[i,0])
-            agent1_reward.append(reward_this_episode[i,1])
-            agent2_reward.append(reward_this_episode[i,2])
+        agent0_reward.append(reward_this_episode[i,0])
+        agent1_reward.append(reward_this_episode[i,1])
 
         if episode % 100 == 0 or episode == number_of_episodes-1:
             avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward), np.mean(agent2_reward)]
@@ -157,6 +131,7 @@ def main():
 
         #saving model
         save_dict_list =[]
+        save_info = False
         if save_info:
             for i in range(3):
 
@@ -168,10 +143,6 @@ def main():
 
                 torch.save(save_dict_list, 
                            os.path.join(model_dir, 'episode-{}.pt'.format(episode)))
-                
-            # save gif files
-            imageio.mimsave(os.path.join(model_dir, 'episode-{}.gif'.format(episode)), 
-                            frames, duration=.04)
 
     env.close()
     logger.close()
