@@ -8,7 +8,7 @@ class TennisEnv:
         # get the default brain
         self.brain_name = self.env.brain_names[0]
         self.brain = self.env.brains[self.brain_name]
-        states, env_info = self.reset(True)
+        states, full_state, env_info = self.reset(True)
         # number of agents
         self.num_agents = len(env_info.agents)
         print('Number of agents:', self.num_agents)
@@ -20,17 +20,22 @@ class TennisEnv:
         print('There are {} agents. Each observes a state with length: {}'.format(states.shape[0], self.state_size))
         print('The state for the first agent looks like:', states[0])
         print('The state for the second agent looks like:', states[1])
+        print('The full state is:', full_state)
 
     def reset(self, train_mode=True):
         env_info = self.env.reset(train_mode=train_mode)[self.brain_name]
         states = env_info.vector_observations
-        return states, env_info
+        full_state = self.get_full_state(states)
+        return states, full_state, env_info
 
     def step(self, actions):
         env_info = self.env.step(actions)[self.brain_name]  # send all actions to tne environment
         next_states = env_info.vector_observations  # get next state (for each agent)
+        next_state_full = self.get_full_state(next_states)
         rewards = env_info.rewards  # get reward (for each agent)
         dones = env_info.local_done
-        return next_states, rewards, dones, env_info
+        return next_states, next_state_full, rewards, dones, env_info
 
 
+    def get_full_state(self, x):
+        return np.expand_dims(np.concatenate((x[0], x[1])), axis=0)

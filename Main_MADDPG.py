@@ -81,17 +81,16 @@ def main():
     #for episode in keep_awake(range(0, number_of_episodes, parallel_envs)):
     for episode in range(0, number_of_episodes):
         timer.update(episode)
-        reward_this_episode = np.zeros((number_of_agents, 3))
-        all_obs, env_info = env.reset()
+        reward_this_episode = np.zeros((number_of_agents))
+        obs, obs_full, env_info = env.reset()
         print('Reset All Obs:')
-        print(all_obs)
-        obs, obs_full = transpose_list(all_obs)
+        print(obs_full)
 
         for episode_t in range(episode_length):
             t += 1
             # explore = only explore for a certain number of episodes
             # action input needs to be transposed
-            actions = maddpg.act(transpose_to_tensor(obs), noise=noise)
+            actions = maddpg.act(torch.tensor(obs, dtype=torch.float), noise=noise)
             noise *= noise_reduction
             
             actions_array = torch.stack(actions).detach().numpy()
@@ -105,29 +104,31 @@ def main():
             next_obs, next_obs_full, rewards, dones, info = env.step(actions_for_env)
             
             # add data to buffer
+            print('OBS shape to push:', obs.shape)
+            print('OBS Full shape to push:', obs_full.shape)
             transition = (obs, obs_full, actions_for_env, rewards, next_obs, next_obs_full, dones)
             
             buffer.push(transition)
-            
+
+            print('Rewards:', rewards)
             reward_this_episode += rewards
 
             obs, obs_full = next_obs, next_obs_full
 
         # update once after every episode_per_update
         if len(buffer) > batchsize and episode % episode_per_update==0:
-            for a_i in range(3):
+            for a_i in range(number_of_agents):
                 samples = buffer.sample(batchsize)
                 maddpg.update(samples, a_i, logger)
             maddpg.update_targets() #soft update the target network towards the actual networks
 
-        agent0_reward.append(reward_this_episode[i,0])
-        agent1_reward.append(reward_this_episode[i,1])
+        agent0_reward.append(reward_this_episode[0])
+        agent1_reward.append(reward_this_episode[1])
 
         if episode % 100 == 0 or episode == number_of_episodes-1:
-            avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward), np.mean(agent2_reward)]
+            avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward)]
             agent0_reward = []
             agent1_reward = []
-            agent2_reward = []
             for a_i, avg_rew in enumerate(avg_rewards):
                 logger.add_scalar('agent%i/mean_episode_rewards' % a_i, avg_rew, episode)
 

@@ -4,19 +4,23 @@
 
 from ddpg import DDPGAgent
 import torch
-from utilities import soft_update, transpose_to_tensor, transpose_list
+from utilities import soft_update
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = 'cpu'
 
-
+def transpose_to_tensor(x):
+    return torch.tensor(x, dtype=torch.float)
 
 class MADDPG:
     def __init__(self, discount_factor=0.95, tau=0.02):
         super(MADDPG, self).__init__()
 
-        # critic input = obs_full + actions = 14+2+2+2=20
-        self.maddpg_agent = [DDPGAgent(14, 16, 8, 2, 20, 32, 16), 
-                             DDPGAgent(14, 16, 8, 2, 20, 32, 16)
+        # critic input = obs_full + actions = 24*2 + 2 = 50
+        # 24
+        self.maddpg_agent = [DDPGAgent(24, 16, 8, 2,  # actor net: in_actor, hidden, hidden, out_actor
+                                       50, 32, 16),   # critic net: in_critic, hidden, hidden
+                             DDPGAgent(24, 16, 8, 2,
+                                       20, 32, 16)
                              ]
         
         self.discount_factor = discount_factor
@@ -50,16 +54,23 @@ class MADDPG:
         # to flip obs[parallel_agent][agent_number] to
         # obs[agent_number][parallel_agent]
         obs, obs_full, action, reward, next_obs, next_obs_full, done = map(transpose_to_tensor, samples)
+        print('Obs shape:', obs.shape)
+        print('Obs Full shape:', obs_full.shape, obs_full[0].shape)
+        print('Action shape:', action.shape)
 
-        obs_full = torch.stack(obs_full)
-        next_obs_full = torch.stack(next_obs_full)
+        #obs_full = torch.stack(obs_full)
+        #next_obs_full = torch.stack(next_obs_full)
         
         agent = self.maddpg_agent[agent_number]
         agent.critic_optimizer.zero_grad()
 
         #critic loss = batch mean of (y- Q(s,a) from target network)^2
         #y = reward of this timestep + discount * Q(st+1,at+1) from target network
+
+        # TODO:
+        # ?????????????the size is not right here!!!!!!!!!
         target_actions = self.target_act(next_obs)
+        print('target actions shape:', len(target_actions))
         target_actions = torch.cat(target_actions, dim=1)
         
         target_critic_input = torch.cat((next_obs_full.t(),target_actions), dim=1).to(device)

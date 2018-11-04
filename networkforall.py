@@ -30,6 +30,8 @@ class Network(nn.Module):
 
     def forward(self, x):
         if self.actor:
+            #print('Actor network:')
+            #print(x)
             # return a vector of the force
             h1 = self.nonlin(self.fc1(x))
 
@@ -42,6 +44,8 @@ class Network(nn.Module):
             return 10.0*(f.tanh(norm))*h3/norm if norm > 0 else 10*h3
         
         else:
+            #print('Critic network:')
+            #print(x)
             # critic network simply outputs a number
             h1 = self.nonlin(self.fc1(x))
             h2 = self.nonlin(self.fc2(h1))
