@@ -4,23 +4,23 @@
 
 from ddpg import DDPGAgent
 import torch
-from utilities import soft_update
+from utilities import soft_update, transpose_to_tensor
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = 'cpu'
 
-def transpose_to_tensor(x):
-    return torch.tensor(x, dtype=torch.float)
+#def transpose_to_tensor(x):
+#    return torch.tensor(x, dtype=torch.float)
 
 class MADDPG:
     def __init__(self, discount_factor=0.95, tau=0.02):
         super(MADDPG, self).__init__()
 
-        # critic input = obs_full + actions = 24*2 + 2 = 50
+        # critic input = obs_full + actions (both agent) = 24*2 + 2 + 2 = 52
         # 24
         self.maddpg_agent = [DDPGAgent(24, 16, 8, 2,  # actor net: in_actor, hidden, hidden, out_actor
-                                       50, 32, 16),   # critic net: in_critic, hidden, hidden
+                                       52, 32, 16),   # critic net: in_critic, hidden, hidden
                              DDPGAgent(24, 16, 8, 2,
-                                       20, 32, 16)
+                                       52, 32, 16)
                              ]
         
         self.discount_factor = discount_factor
@@ -44,33 +44,29 @@ class MADDPG:
 
     def target_act(self, obs_all_agents, noise=0.0):
         """get target network actions from all the agents in the MADDPG object """
-        target_actions = [ddpg_agent.target_act(obs, noise) for ddpg_agent, obs in zip(self.maddpg_agent, obs_all_agents)]
+        target_actions = []
+        for ddpg_agent, obs in zip(self.maddpg_agent, obs_all_agents):
+            target_actions.append(ddpg_agent.target_act(obs, noise))
         return target_actions
 
     def update(self, samples, agent_number, logger):
         """update the critics and actors of all the agents """
 
         # need to transpose each element of the samples
-        # to flip obs[parallel_agent][agent_number] to
-        # obs[agent_number][parallel_agent]
+        # to flip obs[parallel_env][agent_number] to
+        # obs[agent_number][env_agent]
         obs, obs_full, action, reward, next_obs, next_obs_full, done = map(transpose_to_tensor, samples)
-        print('Obs shape:', obs.shape)
-        print('Obs Full shape:', obs_full.shape, obs_full[0].shape)
-        print('Action shape:', action.shape)
 
-        #obs_full = torch.stack(obs_full)
-        #next_obs_full = torch.stack(next_obs_full)
-        
+        obs_full = torch.stack(obs_full)
+        next_obs_full = torch.stack(next_obs_full)
+
         agent = self.maddpg_agent[agent_number]
         agent.critic_optimizer.zero_grad()
 
         #critic loss = batch mean of (y- Q(s,a) from target network)^2
         #y = reward of this timestep + discount * Q(st+1,at+1) from target network
 
-        # TODO:
-        # ?????????????the size is not right here!!!!!!!!!
         target_actions = self.target_act(next_obs)
-        print('target actions shape:', len(target_actions))
         target_actions = torch.cat(target_actions, dim=1)
         
         target_critic_input = torch.cat((next_obs_full.t(),target_actions), dim=1).to(device)

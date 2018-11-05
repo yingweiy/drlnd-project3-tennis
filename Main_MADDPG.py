@@ -81,10 +81,8 @@ def main():
     #for episode in keep_awake(range(0, number_of_episodes, parallel_envs)):
     for episode in range(0, number_of_episodes):
         timer.update(episode)
-        reward_this_episode = np.zeros((number_of_agents))
+        reward_this_episode = np.zeros((1, number_of_agents))
         obs, obs_full, env_info = env.reset()
-        print('Reset All Obs:')
-        print(obs_full)
 
         for episode_t in range(episode_length):
             t += 1
@@ -92,25 +90,24 @@ def main():
             # action input needs to be transposed
             actions = maddpg.act(torch.tensor(obs, dtype=torch.float), noise=noise)
             noise *= noise_reduction
-            
-            actions_array = torch.stack(actions).detach().numpy()
+
+            actions_for_env = actions[0].detach().numpy()
+            #print(actions_for_env.shape)
 
             # transpose the list of list
             # flip the first two indices
             # input to step requires the first index to correspond to number of parallel agents
-            actions_for_env = np.rollaxis(actions_array,1)
+            #actions_for_env = np.rollaxis(actions_array,1)
             
             # step forward one frame
             next_obs, next_obs_full, rewards, dones, info = env.step(actions_for_env)
-            
+
+            actions_for_buffer = np.expand_dims(actions_for_env, axis=0)
             # add data to buffer
-            print('OBS shape to push:', obs.shape)
-            print('OBS Full shape to push:', obs_full.shape)
-            transition = (obs, obs_full, actions_for_env, rewards, next_obs, next_obs_full, dones)
+            transition = (obs, obs_full, actions_for_buffer, rewards, next_obs, next_obs_full, dones)
             
             buffer.push(transition)
-
-            print('Rewards:', rewards)
+            #print('Rewards:', rewards)
             reward_this_episode += rewards
 
             obs, obs_full = next_obs, next_obs_full
@@ -122,8 +119,8 @@ def main():
                 maddpg.update(samples, a_i, logger)
             maddpg.update_targets() #soft update the target network towards the actual networks
 
-        agent0_reward.append(reward_this_episode[0])
-        agent1_reward.append(reward_this_episode[1])
+        agent0_reward.append(reward_this_episode[0, 0])
+        agent1_reward.append(reward_this_episode[0, 1])
 
         if episode % 100 == 0 or episode == number_of_episodes-1:
             avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward)]
