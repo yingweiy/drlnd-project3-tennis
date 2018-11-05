@@ -107,7 +107,7 @@ def main():
             transition = (obs, obs_full, actions_for_buffer, rewards, next_obs, next_obs_full, dones)
             
             buffer.push(transition)
-            #print('Rewards:', rewards)
+            print('Rewards:', rewards)
             reward_this_episode += rewards
 
             obs, obs_full = next_obs, next_obs_full

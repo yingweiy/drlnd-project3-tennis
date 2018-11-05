@@ -41,3 +41,6 @@ class TennisEnv:
 
     def get_full_state(self, x):
         return np.expand_dims(np.concatenate((x[0], x[1])), axis=0)
+
+    def close(self):
+        self.env.close()

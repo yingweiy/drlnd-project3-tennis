@@ -17,10 +17,10 @@ class MADDPG:
 
         # critic input = obs_full + actions (both agent) = 24*2 + 2 + 2 = 52
         # 24
-        self.maddpg_agent = [DDPGAgent(24, 16, 8, 2,  # actor net: in_actor, hidden, hidden, out_actor
-                                       52, 32, 16),   # critic net: in_critic, hidden, hidden
-                             DDPGAgent(24, 16, 8, 2,
-                                       52, 32, 16)
+        self.maddpg_agent = [DDPGAgent(24, 128, 128, 2,  # actor net: in_actor, hidden, hidden, out_actor
+                                       52, 128, 128),   # critic net: in_critic, hidden, hidden
+                             DDPGAgent(24, 128, 128, 2,
+                                       52, 128, 128)
                              ]
         
         self.discount_factor = discount_factor
