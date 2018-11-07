@@ -8,6 +8,7 @@ import torch
 import numpy as np
 from tensorboardX import SummaryWriter
 import os
+from collections import deque
 from utilities import transpose_list, transpose_to_tensor
 
 # for saving gif
@@ -35,20 +36,18 @@ def main():
     number_of_agents = 2
     # number of training episodes.
     # change this to higher number to experiment. say 30000.
-    number_of_episodes = 1000
-    episode_length = 80
-    batchsize = 1000
-    # how many episodes to save policy and gif
-    save_interval = 1000
+    number_of_episodes = 2000
+    episode_length = 2000
+    batchsize = 512
     t = 0
     
     # amplitude of OU noise
     # this slowly decreases to 0
-    noise = 2
-    noise_reduction = 0.9999
+    noise = 1
+    noise_reduction = 0.99
 
     # how many episodes before update
-    episode_per_update = 2 * number_of_agents
+    episode_per_update = 4
 
     log_path = os.getcwd()+"/log"
     model_dir= os.getcwd()+"/model_dir"
@@ -61,7 +60,7 @@ def main():
     env = TennisEnv()
     
     # keep 5000 episodes worth of replay
-    buffer = ReplayBuffer(int(5000*episode_length))
+    buffer = ReplayBuffer(int(1e6))
     
     # initialize policy and critic
     maddpg = MADDPG()
@@ -70,19 +69,12 @@ def main():
     agent1_reward = []
 
     # training loop
-    # show progressbar
-    import progressbar as pb
-    widget = ['episode: ', pb.Counter(),'/',str(number_of_episodes),' ', 
-              pb.Percentage(), ' ', pb.ETA(), ' ', pb.Bar(marker=pb.RotatingMarker()), ' ' ]
-    
-    timer = pb.ProgressBar(widgets=widget, maxval=number_of_episodes).start()
-
-    # use keep_awake to keep workspace from disconnecting
-    #for episode in keep_awake(range(0, number_of_episodes, parallel_envs)):
+    scores_window = deque(maxlen=100)
     for episode in range(0, number_of_episodes):
-        timer.update(episode)
         reward_this_episode = np.zeros((1, number_of_agents))
         obs, obs_full, env_info = env.reset()
+        agent0_reward = []
+        agent1_reward = []
 
         for episode_t in range(episode_length):
             t += 1
@@ -90,8 +82,7 @@ def main():
             # action input needs to be transposed
             actions = maddpg.act(torch.tensor(obs, dtype=torch.float), noise=noise)
             noise *= noise_reduction
-
-            actions_for_env = actions[0].detach().numpy()
+            actions_for_env = torch.stack(actions).detach().numpy()
             #print(actions_for_env.shape)
 
             # transpose the list of list
@@ -107,27 +98,27 @@ def main():
             transition = (obs, obs_full, actions_for_buffer, rewards, next_obs, next_obs_full, dones)
             
             buffer.push(transition)
-            print('Rewards:', rewards)
+            #print('Rewards:', rewards)
             reward_this_episode += rewards
 
             obs, obs_full = next_obs, next_obs_full
 
-        # update once after every episode_per_update
-        if len(buffer) > batchsize and episode % episode_per_update==0:
-            for a_i in range(number_of_agents):
-                samples = buffer.sample(batchsize)
-                maddpg.update(samples, a_i, logger)
-            maddpg.update_targets() #soft update the target network towards the actual networks
+            # update once after every episode_per_update
+            if len(buffer) > batchsize and episode_t % episode_per_update==0:
+                for a_i in range(number_of_agents):
+                    samples = buffer.sample(batchsize)
+                    maddpg.update(samples, a_i, logger)
+                maddpg.update_targets() #soft update the target network towards the actual networks
 
         agent0_reward.append(reward_this_episode[0, 0])
         agent1_reward.append(reward_this_episode[0, 1])
+        avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward)]
+        scores_window.append(avg_rewards)
+        print('\rEpisode {}\tRwd:{:.2f}, {:.2f} Average Score: {:.2f}'.format(episode,
+                                                                              reward_this_episode[0, 0],
+                                                                              reward_this_episode[0, 1],
+                                                                              np.mean(scores_window)))
 
-        if episode % 100 == 0 or episode == number_of_episodes-1:
-            avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward)]
-            agent0_reward = []
-            agent1_reward = []
-            for a_i, avg_rew in enumerate(avg_rewards):
-                logger.add_scalar('agent%i/mean_episode_rewards' % a_i, avg_rew, episode)
 
         #saving model
         save_dict_list =[]
@@ -145,7 +136,6 @@ def main():
 
     env.close()
     logger.close()
-    timer.finish()
 
 if __name__=='__main__':
     main()

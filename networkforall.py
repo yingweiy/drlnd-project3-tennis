@@ -25,7 +25,8 @@ class Network(nn.Module):
         if self.actor:
             h1 = f.relu(self.fc1(x))
             h2 = f.relu(self.fc2(h1))
-            h3 = torch.clamp(self.fc3(h2), min=-1, max=1)
+            #h3 = torch.clamp(self.fc3(h2), min=-1, max=1)
+            h3 = f.tanh(self.fc3(h2))
             return h3
         
         else:

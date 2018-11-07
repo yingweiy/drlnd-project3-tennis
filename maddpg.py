@@ -2,6 +2,7 @@
 # policy + critic updates
 # see ddpg.py for other details in the network
 
+import numpy as np
 from ddpg import DDPGAgent
 import torch
 from utilities import soft_update, transpose_to_tensor
@@ -12,17 +13,18 @@ device = 'cpu'
 #    return torch.tensor(x, dtype=torch.float)
 
 class MADDPG:
-    def __init__(self, discount_factor=0.95, tau=0.02):
+    def __init__(self, discount_factor=0.95, tau=1e-3):
         super(MADDPG, self).__init__()
 
         # critic input = obs_full + actions (both agent) = 24*2 + 2 + 2 = 52
         # 24
-        self.maddpg_agent = [DDPGAgent(24, 128, 128, 2,  # actor net: in_actor, hidden, hidden, out_actor
-                                       52, 128, 128),   # critic net: in_critic, hidden, hidden
-                             DDPGAgent(24, 128, 128, 2,
-                                       52, 128, 128)
+        nhidden = [512, 256]
+        self.maddpg_agent = [DDPGAgent(24, nhidden[0], nhidden[1], 2,  # actor net: in_actor, hidden, hidden, out_actor
+                                       52, nhidden[0], nhidden[1]),   # critic net: in_critic, hidden, hidden
+                             DDPGAgent(24, nhidden[0], nhidden[1], 2,
+                                       52, nhidden[0], nhidden[1])
                              ]
-        
+        self.n_agents = len(self.maddpg_agent)
         self.discount_factor = discount_factor
         self.tau = tau
         self.iter = 0
@@ -39,14 +41,21 @@ class MADDPG:
 
     def act(self, obs_all_agents, noise=0.0):
         """get actions from all agents in the MADDPG object"""
-        actions = [agent.act(obs, noise) for agent, obs in zip(self.maddpg_agent, obs_all_agents)]
+        actions = []
+        for i in range(self.n_agents):
+            agent = self.maddpg_agent[i]
+            obs = obs_all_agents[0,i,:]
+            action = agent.act(obs, noise)
+            actions.append(action)
         return actions
 
     def target_act(self, obs_all_agents, noise=0.0):
         """get target network actions from all the agents in the MADDPG object """
         target_actions = []
-        for ddpg_agent, obs in zip(self.maddpg_agent, obs_all_agents):
-            target_actions.append(ddpg_agent.target_act(obs, noise))
+        for i in range(self.n_agents):
+            agent = self.maddpg_agent[i]
+            action = agent.target_act(obs_all_agents[i], noise)
+            target_actions.append(action)
         return target_actions
 
     def update(self, samples, agent_number, logger):
@@ -78,11 +87,9 @@ class MADDPG:
         action = torch.cat(action, dim=1)
         critic_input = torch.cat((obs_full.t(), action), dim=1).to(device)
         q = agent.critic(critic_input)
-
         huber_loss = torch.nn.SmoothL1Loss()
         critic_loss = huber_loss(q, y.detach())
         critic_loss.backward()
-        #torch.nn.utils.clip_grad_norm_(agent.critic.parameters(), 0.5)
         agent.critic_optimizer.step()
 
         #update actor network using policy gradient
@@ -90,6 +97,7 @@ class MADDPG:
         # make input to agent
         # detach the other agents to save computation
         # saves some time for computing derivative
+        # shape: 1000x4
         q_input = [ self.maddpg_agent[i].actor(ob) if i == agent_number \
                    else self.maddpg_agent[i].actor(ob).detach()
                    for i, ob in enumerate(obs) ]
@@ -97,6 +105,7 @@ class MADDPG:
         q_input = torch.cat(q_input, dim=1)
         # combine all the actions and observations for input to critic
         # many of the obs are redundant, and obs[1] contains all useful information already
+        # shape: 1000x52
         q_input2 = torch.cat((obs_full.t(), q_input), dim=1)
         
         # get the policy gradient
