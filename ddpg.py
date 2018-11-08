@@ -35,6 +35,7 @@ class DDPGAgent:
 
     def act(self, obs, noise=0.0):
         obs = obs.to(device)
+        self.actor.eval()
         with torch.no_grad():
             action = self.actor(obs).cpu().data.numpy() + noise*self.noise.noise()
         self.actor.train()

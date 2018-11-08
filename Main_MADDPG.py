@@ -38,7 +38,7 @@ def main():
     # change this to higher number to experiment. say 30000.
     number_of_episodes = 2000
     episode_length = 2000
-    batchsize = 512
+    batchsize = 64
     t = 0
     
     # amplitude of OU noise
@@ -55,7 +55,7 @@ def main():
     os.makedirs(model_dir, exist_ok=True)
 
     # do we need to set multi-thread for this env?
-    torch.set_num_threads(number_of_agents)
+    #torch.set_num_threads(number_of_agents)
 
     env = TennisEnv()
     

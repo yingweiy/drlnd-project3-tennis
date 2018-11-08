@@ -3,7 +3,7 @@ import numpy as np
 
 class TennisEnv:
     def __init__(self):
-        self.env = UnityEnvironment(file_name="Tennis_Linux/Tennis.x86_64")
+        self.env = UnityEnvironment(file_name="Tennis_Windows_x86_64/Tennis.exe")
 
         # get the default brain
         self.brain_name = self.env.brain_names[0]

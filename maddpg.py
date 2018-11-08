@@ -13,7 +13,7 @@ device = 'cpu'
 #    return torch.tensor(x, dtype=torch.float)
 
 class MADDPG:
-    def __init__(self, discount_factor=0.95, tau=1e-3):
+    def __init__(self, discount_factor=0.99, tau=1e-3):
         super(MADDPG, self).__init__()
 
         # critic input = obs_full + actions (both agent) = 24*2 + 2 + 2 = 52
@@ -79,26 +79,24 @@ class MADDPG:
         target_actions = torch.cat(target_actions, dim=1)
         
         target_critic_input = torch.cat((next_obs_full.t(),target_actions), dim=1).to(device)
-        
-        with torch.no_grad():
-            q_next = agent.target_critic(target_critic_input)
-        
+        q_next = agent.target_critic(target_critic_input)
         y = reward[agent_number].view(-1, 1) + self.discount_factor * q_next * (1 - done[agent_number].view(-1, 1))
         action = torch.cat(action, dim=1)
         critic_input = torch.cat((obs_full.t(), action), dim=1).to(device)
         q = agent.critic(critic_input)
-        huber_loss = torch.nn.SmoothL1Loss()
-        critic_loss = huber_loss(q, y.detach())
+        critic_loss = torch.nn.functional.mse_loss(q, y)
         critic_loss.backward()
+        torch.nn.utils.clip_grad_norm_(agent.critic.parameters(), 1.0)
         agent.critic_optimizer.step()
 
         #update actor network using policy gradient
-        agent.actor_optimizer.zero_grad()
+
         # make input to agent
         # detach the other agents to save computation
         # saves some time for computing derivative
-        # shape: 1000x4
-        q_input = [ self.maddpg_agent[i].actor(ob) if i == agent_number \
+        # shape: 512 x 4
+        # q_input is the actions from both agents
+        q_input = [self.maddpg_agent[i].actor(ob) if i == agent_number \
                    else self.maddpg_agent[i].actor(ob).detach()
                    for i, ob in enumerate(obs) ]
                 
@@ -110,7 +108,9 @@ class MADDPG:
         
         # get the policy gradient
         actor_loss = -agent.critic(q_input2).mean()
+        agent.actor_optimizer.zero_grad()
         actor_loss.backward()
+        torch.nn.utils.clip_grad_norm_(agent.actor.parameters(), 1)
         #torch.nn.utils.clip_grad_norm_(agent.actor.parameters(),0.5)
         agent.actor_optimizer.step()
 
