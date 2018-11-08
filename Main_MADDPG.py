@@ -38,7 +38,7 @@ def main():
     # change this to higher number to experiment. say 30000.
     number_of_episodes = 2000
     episode_length = 2000
-    batchsize = 64
+    batchsize = 512
     t = 0
     
     # amplitude of OU noise
