@@ -27,12 +27,12 @@ def main():
     # change this to higher number to experiment. say 30000.
     number_of_episodes = 4000
     episode_length = 1000
-    batchsize = 512
+    batchsize = 128
     
     # amplitude of OU noise
     # this slowly decreases to 0
     noise = 1
-    noise_reduction = 0.999
+    noise_reduction = 1 #0.999
 
     # how many episodes before update
     episode_per_update = 2
@@ -48,7 +48,7 @@ def main():
     env = TennisEnv()
     
     # keep 5000 episodes worth of replay
-    buffer = ReplayBuffer(int(1e6))
+    buffer = ReplayBuffer(int(1e5))
     
     # initialize policy and critic
     maddpg = MADDPG()
