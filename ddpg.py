@@ -15,7 +15,7 @@ from OUNoise import OUNoise
 device = 'cpu'
 
 class DDPGAgent:
-    def __init__(self, in_actor, out_actor, in_critic, lr_actor=1.0e-4, lr_critic=1.0e-3):
+    def __init__(self, in_actor, out_actor, in_critic, lr_actor=1.0e-4, lr_critic=1.0e-4):
         super(DDPGAgent, self).__init__()
         self.actor = Actor(in_actor, out_actor).to(device)
         self.critic = Critic(in_critic).to(device)
@@ -40,7 +40,5 @@ class DDPGAgent:
 
     def target_act(self, obs, noise=0.0):
         obs = obs.to(device)
-        self.target_actor.eval()
         action = self.target_actor(obs).cpu().data.numpy() + noise*self.noise.noise()
-        self.target_actor.train()
         return np.clip(action, -1, 1)
