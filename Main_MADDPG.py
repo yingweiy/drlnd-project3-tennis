@@ -86,7 +86,8 @@ def main():
             #print('Rewards:', rewards)
             reward_this_episode += rewards
 
-            obs, obs_full = next_obs, next_obs_full
+            obs = np.copy(next_obs)
+            obs_full = np.copy(next_obs_full)
 
             # update once after every episode_per_update
             if len(buffer) > batchsize and episode>300 and episode % episode_per_update==0:
