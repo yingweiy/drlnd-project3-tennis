@@ -32,7 +32,7 @@ def main():
     # amplitude of OU noise
     # this slowly decreases to 0
     noise = 1
-    noise_reduction = 1 #0.999
+    noise_reduction = 0.999
 
     # how many episodes before update
     episode_per_update = 2
@@ -91,10 +91,10 @@ def main():
 
             # update once after every episode_per_update
             if len(buffer) > batchsize and episode>300 and episode % episode_per_update==0:
-                a_i = choice(range(number_of_agents))
-                samples = buffer.sample(batchsize)
-                maddpg.update(samples, a_i, logger)
-                maddpg.update_targets(a_i) #soft update the target network towards the actual networks
+                for a_i in range(number_of_agents):
+                    samples = buffer.sample(batchsize)
+                    maddpg.update(samples, a_i, logger)
+                    maddpg.update_targets(a_i) #soft update the target network towards the actual networks
 
 
             if np.any(dones):
