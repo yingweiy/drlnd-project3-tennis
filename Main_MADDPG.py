@@ -37,7 +37,7 @@ def main():
     # number of training episodes.
     # change this to higher number to experiment. say 30000.
     number_of_episodes = 2000
-    episode_length = 2000
+    episode_length = 4000
     batchsize = 512
     t = 0
     
@@ -65,8 +65,6 @@ def main():
     # initialize policy and critic
     maddpg = MADDPG()
     logger = SummaryWriter(log_dir=log_path)
-    agent0_reward = []
-    agent1_reward = []
 
     # training loop
     scores_window = deque(maxlen=100)
@@ -83,13 +81,7 @@ def main():
             actions = maddpg.act(torch.tensor(obs, dtype=torch.float), noise=noise)
             noise *= noise_reduction
             actions_for_env = torch.stack(actions).detach().numpy()
-            #print(actions_for_env.shape)
 
-            # transpose the list of list
-            # flip the first two indices
-            # input to step requires the first index to correspond to number of parallel agents
-            #actions_for_env = np.rollaxis(actions_array,1)
-            
             # step forward one frame
             next_obs, next_obs_full, rewards, dones, info = env.step(actions_for_env)
 
@@ -104,11 +96,14 @@ def main():
             obs, obs_full = next_obs, next_obs_full
 
             # update once after every episode_per_update
-            if len(buffer) > batchsize and episode_t % episode_per_update==0:
+            if len(buffer) > batchsize and episode % episode_per_update==0:
                 for a_i in range(number_of_agents):
                     samples = buffer.sample(batchsize)
                     maddpg.update(samples, a_i, logger)
                 maddpg.update_targets() #soft update the target network towards the actual networks
+
+            if np.any(dones):
+                break
 
         agent0_reward.append(reward_this_episode[0, 0])
         agent1_reward.append(reward_this_episode[0, 1])
