@@ -18,33 +18,20 @@ def seeding(seed=1):
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-def pre_process(entity, batchsize):
-    processed_entity = []
-    for j in range(3):
-        list = []
-        for i in range(batchsize):
-            b = entity[i][j]
-            list.append(b)
-        c = torch.Tensor(list)
-        processed_entity.append(c)
-    return processed_entity
-
-
 def main():
     seeding()
     # number of parallel agents
     number_of_agents = 2
     # number of training episodes.
     # change this to higher number to experiment. say 30000.
-    number_of_episodes = 2000
-    episode_length = 4000
+    number_of_episodes = 4000
+    episode_length = 1000
     batchsize = 512
-    t = 0
     
     # amplitude of OU noise
     # this slowly decreases to 0
     noise = 1
-    noise_reduction = 0.99
+    noise_reduction = 0.999
 
     # how many episodes before update
     episode_per_update = 4
@@ -74,12 +61,17 @@ def main():
         agent0_reward = []
         agent1_reward = []
 
+        for agent in maddpg.maddpg_agent:
+            agent.noise.reset()
+
         for episode_t in range(episode_length):
-            t += 1
             # explore = only explore for a certain number of episodes
             # action input needs to be transposed
             actions = maddpg.act(torch.tensor(obs, dtype=torch.float), noise=noise)
-            noise *= noise_reduction
+            #print(actions)
+
+            if noise>0.01:
+                noise *= noise_reduction
             actions_for_env = torch.stack(actions).detach().numpy()
 
             # step forward one frame
@@ -102,6 +94,7 @@ def main():
                     maddpg.update(samples, a_i, logger)
                 maddpg.update_targets() #soft update the target network towards the actual networks
 
+
             if np.any(dones):
                 break
 
@@ -109,10 +102,12 @@ def main():
         agent1_reward.append(reward_this_episode[0, 1])
         avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward)]
         scores_window.append(avg_rewards)
-        print('\rEpisode {}\tRwd:{:.2f}, {:.2f} Average Score: {:.2f}'.format(episode,
+        print('\rEpisode {}\tRwd:{:.2f}, {:.2f} Average Score: {:.4f} Noise:{:.2f}'.format(episode,
                                                                               reward_this_episode[0, 0],
                                                                               reward_this_episode[0, 1],
-                                                                              np.mean(scores_window)))
+                                                                              np.mean(scores_window),
+                                                                                           noise)
+              )
 
 
         #saving model

@@ -19,10 +19,9 @@ class MADDPG:
         # critic input = obs_full + actions (both agent) = 24*2 + 2 + 2 = 52
         # 24
         nhidden = [512, 256]
-        self.maddpg_agent = [DDPGAgent(24, nhidden[0], nhidden[1], 2,  # actor net: in_actor, hidden, hidden, out_actor
-                                       52, nhidden[0], nhidden[1]),   # critic net: in_critic, hidden, hidden
-                             DDPGAgent(24, nhidden[0], nhidden[1], 2,
-                                       52, nhidden[0], nhidden[1])
+        self.maddpg_agent = [DDPGAgent(24, 2,  # actor net: in_actor, hidden, hidden, out_actor
+                                       52),   # critic net: in_critic, hidden, hidden
+                             DDPGAgent(24, 2, 52)
                              ]
         self.n_agents = len(self.maddpg_agent)
         self.discount_factor = discount_factor
@@ -61,9 +60,7 @@ class MADDPG:
     def update(self, samples, agent_number, logger):
         """update the critics and actors of all the agents """
 
-        # need to transpose each element of the samples
-        # to flip obs[parallel_env][agent_number] to
-        # obs[agent_number][env_agent]
+        # obs[agent_number]
         obs, obs_full, action, reward, next_obs, next_obs_full, done = map(transpose_to_tensor, samples)
 
         obs_full = torch.stack(obs_full)
@@ -71,9 +68,6 @@ class MADDPG:
 
         agent = self.maddpg_agent[agent_number]
         agent.critic_optimizer.zero_grad()
-
-        #critic loss = batch mean of (y- Q(s,a) from target network)^2
-        #y = reward of this timestep + discount * Q(st+1,at+1) from target network
 
         target_actions = self.target_act(next_obs)
         target_actions = torch.cat(target_actions, dim=1)
@@ -110,8 +104,8 @@ class MADDPG:
         actor_loss = -agent.critic(q_input2).mean()
         agent.actor_optimizer.zero_grad()
         actor_loss.backward()
-        torch.nn.utils.clip_grad_norm_(agent.actor.parameters(), 1)
-        #torch.nn.utils.clip_grad_norm_(agent.actor.parameters(),0.5)
+        #torch.nn.utils.clip_grad_norm_(agent.actor.parameters(), 1)
+        torch.nn.utils.clip_grad_norm_(agent.actor.parameters(),0.5)
         agent.actor_optimizer.step()
 
         al = actor_loss.cpu().detach().item()
@@ -127,6 +121,7 @@ class MADDPG:
         for ddpg_agent in self.maddpg_agent:
             soft_update(ddpg_agent.target_actor, ddpg_agent.actor, self.tau)
             soft_update(ddpg_agent.target_critic, ddpg_agent.critic, self.tau)
+            ddpg_agent.noise.reset()
             
             
             
