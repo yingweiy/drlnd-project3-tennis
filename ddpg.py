@@ -1,7 +1,7 @@
 # individual network settings for each actor + critic pair
 # see networkforall for details
 
-from networkforall import Actor, Critic
+from network import Actor, Critic
 from utilities import hard_update, gumbel_softmax, onehot_from_logits
 from torch.optim import Adam
 import torch

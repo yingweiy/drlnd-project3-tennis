@@ -18,7 +18,6 @@ class MADDPG:
 
         # critic input = obs_full + actions (both agent) = 24*2 + 2 + 2 = 52
         # 24
-        nhidden = [512, 256]
         self.maddpg_agent = [DDPGAgent(24, 2,  # actor net: in_actor, hidden, hidden, out_actor
                                        52),   # critic net: in_critic, hidden, hidden
                              DDPGAgent(24, 2, 52)
