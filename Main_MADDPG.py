@@ -116,7 +116,7 @@ def main():
         save_dict_list =[]
         save_info = False
         if save_info:
-            for i in range(3):
+            for i in range(number_of_agents):
                 save_dict = {'actor_params' : maddpg.maddpg_agent[i].actor.state_dict(),
                              'actor_optim_params': maddpg.maddpg_agent[i].actor_optimizer.state_dict(),
                              'critic_params' : maddpg.maddpg_agent[i].critic.state_dict(),
