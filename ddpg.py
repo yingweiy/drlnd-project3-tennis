@@ -2,7 +2,7 @@
 # see networkforall for details
 
 from network import Actor, Critic
-from utilities import hard_update, gumbel_softmax, onehot_from_logits
+from utilities import hard_update
 from torch.optim import Adam
 import torch
 import numpy as np
