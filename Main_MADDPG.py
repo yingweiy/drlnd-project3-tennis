@@ -9,6 +9,7 @@ import numpy as np
 from tensorboardX import SummaryWriter
 import os
 from collections import deque
+from random import choice
 from utilities import transpose_list, transpose_to_tensor
 
 # for saving gif
@@ -34,7 +35,7 @@ def main():
     noise_reduction = 0.999
 
     # how many episodes before update
-    episode_per_update = 4
+    episode_per_update = 2
 
     log_path = os.getcwd()+"/log"
     model_dir= os.getcwd()+"/model_dir"
@@ -88,11 +89,11 @@ def main():
             obs, obs_full = next_obs, next_obs_full
 
             # update once after every episode_per_update
-            if len(buffer) > batchsize and episode % episode_per_update==0:
-                for a_i in range(number_of_agents):
-                    samples = buffer.sample(batchsize)
-                    maddpg.update(samples, a_i, logger)
-                maddpg.update_targets() #soft update the target network towards the actual networks
+            if len(buffer) > batchsize and episode>300 and episode % episode_per_update==0:
+                a_i = choice(range(number_of_agents))
+                samples = buffer.sample(batchsize)
+                maddpg.update(samples, a_i, logger)
+                maddpg.update_targets(a_i) #soft update the target network towards the actual networks
 
 
             if np.any(dones):

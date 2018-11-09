@@ -103,8 +103,7 @@ class MADDPG:
         actor_loss = -agent.critic(q_input2).mean()
         agent.actor_optimizer.zero_grad()
         actor_loss.backward()
-        #torch.nn.utils.clip_grad_norm_(agent.actor.parameters(), 1)
-        torch.nn.utils.clip_grad_norm_(agent.actor.parameters(),0.5)
+        torch.nn.utils.clip_grad_norm_(agent.actor.parameters(), 1)
         agent.actor_optimizer.step()
 
         al = actor_loss.cpu().detach().item()
@@ -114,13 +113,13 @@ class MADDPG:
                             'actor_loss': al},
                            self.iter)
 
-    def update_targets(self):
+    def update_targets(self, a_i):
         """soft update targets"""
         self.iter += 1
-        for ddpg_agent in self.maddpg_agent:
-            soft_update(ddpg_agent.target_actor, ddpg_agent.actor, self.tau)
-            soft_update(ddpg_agent.target_critic, ddpg_agent.critic, self.tau)
-            ddpg_agent.noise.reset()
+        ddpg_agent = self.maddpg_agent[a_i]
+        soft_update(ddpg_agent.target_actor, ddpg_agent.actor, self.tau)
+        soft_update(ddpg_agent.target_critic, ddpg_agent.critic, self.tau)
+        ddpg_agent.noise.reset()
             
             
             
