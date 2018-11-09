@@ -11,7 +11,6 @@ class OUNoise:
         self.mu = mu
         self.theta = theta
         self.sigma = sigma
-        self.state = np.ones(self.action_dimension) * self.mu
         self.reset()
 
     def reset(self):
