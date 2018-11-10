@@ -19,7 +19,7 @@ def main():
     number_of_agents = 2
     # number of training episodes.
     # change this to higher number to experiment. say 30000.
-    number_of_episodes = 6000
+    number_of_episodes = 5000
     max_t = 1000
     batchsize = 128
     
@@ -53,7 +53,9 @@ def main():
     ep_scores = []
 
     # when to save
-    save_on_scores = {5: False, 6: False, 9: False, 10: False}
+    save_on_scores = {5: False, 6: False, 9: False, 10: False, 11:False,
+                      12: False, 13: False, 14: False, 15: False, 16:False,
+                      17: False, 18: False, 19: False, 20: False}
 
     for episode in range(0, number_of_episodes):
         reward_this_episode = np.zeros((1, number_of_agents))
@@ -117,6 +119,7 @@ def main():
             if not(save_on_scores[score_code]):
                 save_on_scores[score_code] = True
                 save_info = True
+
         if save_info:
             for i in range(number_of_agents):
                 save_dict = {'actor_params' : maddpg.maddpg_agent[i].actor.state_dict(),
@@ -126,12 +129,11 @@ def main():
                 save_dict_list.append(save_dict)
 
                 torch.save(save_dict_list, 
-                           os.path.join(model_dir, 'episode-{}.pt'.format(episode)))
+                           os.path.join(model_dir, 'episode-{}-{}.pt'.format(episode,score_code)))
 
-            np.savez('scores.npy',  agent0_reward = np.array(agent0_reward),
+            np.savez('scores-{}-{}.npz'.format(episode,score_code),  agent0_reward = np.array(agent0_reward),
                                     agent1_reward = np.array(agent1_reward),
                                     avg_max_scores = np.array(ep_scores))
-
 
     env.close()
 

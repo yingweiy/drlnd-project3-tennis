@@ -65,19 +65,20 @@ class MADDPG:
         # action: Nx2x2
         # done, reward: Nx2
 
+        agent_critic = self.maddpg_agent[0]
         agent = self.maddpg_agent[agent_number]
 
 
         target_actions = self.target_act(next_obs)
         with torch.no_grad():
-            q_next = agent.target_critic(next_obs_full, target_actions[0], target_actions[1]).squeeze()
+            q_next = agent_critic.target_critic(next_obs_full, target_actions[0], target_actions[1]).squeeze()
         y = reward[:, agent_number].squeeze() + self.discount_factor * q_next * (1 - done[:, agent_number].squeeze())
-        q = agent.critic(obs_full, action[:,0,:], action[:,1,:]).squeeze()
+        q = agent_critic.critic(obs_full, action[:,0,:], action[:,1,:]).squeeze()
         critic_loss = F.mse_loss(q, y)
-        agent.critic_optimizer.zero_grad()
+        agent_critic.critic_optimizer.zero_grad()
         critic_loss.backward()
-        torch.nn.utils.clip_grad_norm_(agent.critic.parameters(), 1.0)
-        agent.critic_optimizer.step()
+        torch.nn.utils.clip_grad_norm_(agent_critic.critic.parameters(), 1.0)
+        agent_critic.critic_optimizer.step()
 
         #update actor network using policy gradient
 
@@ -95,20 +96,20 @@ class MADDPG:
                 q_input.append(acts.detach())
 
         # get the policy gradient
-        actor_loss = -agent.critic(obs_full, q_input[0], q_input[1]).mean()
+        actor_loss = -agent_critic.critic(obs_full, q_input[0], q_input[1]).mean()
         agent.actor_optimizer.zero_grad()
         actor_loss.backward()
         torch.nn.utils.clip_grad_norm_(agent.actor.parameters(), 1)
         agent.actor_optimizer.step()
 
         # soft update the target network towards the actual networks
-        self.update_targets(agent)
+        self.update_targets(agent, agent_critic)
 
-    def update_targets(self, agent):
+    def update_targets(self, agent, agent_critic):
         """soft update targets"""
         self.iter += 1
         soft_update(agent.target_actor, agent.actor, self.tau)
-        soft_update(agent.target_critic, agent.critic, self.tau)
+        soft_update(agent_critic.target_critic, agent_critic.critic, self.tau)
         agent.noise.reset()
             
             
