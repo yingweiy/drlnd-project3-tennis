@@ -11,16 +11,15 @@ import numpy as np
 # add OU noise for exploration
 from OUNoise import OUNoise
 
-#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = 'cpu'
 
 class DDPGAgent:
     def __init__(self, in_actor, out_actor, in_critic, lr_actor=1.0e-4, lr_critic=1.0e-4):
         super(DDPGAgent, self).__init__()
         self.actor = Actor(in_actor, out_actor).to(device)
-        self.critic = Critic(in_critic).to(device)
+        self.critic = Critic(in_critic, out_actor*2).to(device)
         self.target_actor = Actor(in_actor, out_actor).to(device)
-        self.target_critic = Critic(in_critic).to(device)
+        self.target_critic = Critic(in_critic, out_actor*2).to(device)
         self.noise = OUNoise(out_actor, scale=1.0)
 
         # initialize targets same as original networks

@@ -6,14 +6,8 @@ from buffer import ReplayBuffer
 from maddpg import MADDPG
 import torch
 import numpy as np
-from tensorboardX import SummaryWriter
 import os
 from collections import deque
-from random import choice
-from utilities import transpose_list, transpose_to_tensor
-
-# for saving gif
-import imageio
 
 def seeding(seed=1):
     np.random.seed(seed)
@@ -25,17 +19,20 @@ def main():
     number_of_agents = 2
     # number of training episodes.
     # change this to higher number to experiment. say 30000.
-    number_of_episodes = 4000
-    episode_length = 1000
-    batchsize = 128
+    number_of_episodes = 6000
+    max_t = 1000
+    batchsize = 512
     
     # amplitude of OU noise
     # this slowly decreases to 0
     noise = 1
     noise_reduction = 0.999
 
+    tau = 1e-3   # soft update factor
+    gamma = 0.99 # reward discount factor
+
     # how many episodes before update
-    episode_per_update = 2
+    episode_per_update = 4
 
     log_path = os.getcwd()+"/log"
     model_dir= os.getcwd()+"/model_dir"
@@ -43,16 +40,15 @@ def main():
     os.makedirs(model_dir, exist_ok=True)
 
     # do we need to set multi-thread for this env?
-    #torch.set_num_threads(number_of_agents)
+    torch.set_num_threads(number_of_agents*2)
 
     env = TennisEnv()
     
     # keep 5000 episodes worth of replay
-    buffer = ReplayBuffer(int(1e5))
+    buffer = ReplayBuffer(int(1e6))
     
     # initialize policy and critic
-    maddpg = MADDPG()
-    logger = SummaryWriter(log_dir=log_path)
+    maddpg = MADDPG(discount_factor=gamma, tau=tau)
 
     # training loop
     scores_window = deque(maxlen=100)
@@ -65,7 +61,7 @@ def main():
         for agent in maddpg.maddpg_agent:
             agent.noise.reset()
 
-        for episode_t in range(episode_length):
+        for episode_t in range(max_t):
             # explore = only explore for a certain number of episodes
             # action input needs to be transposed
             actions = maddpg.act(torch.tensor(obs, dtype=torch.float), noise=noise)
@@ -78,12 +74,9 @@ def main():
             # step forward one frame
             next_obs, next_obs_full, rewards, dones, info = env.step(actions_for_env)
 
-            actions_for_buffer = np.expand_dims(actions_for_env, axis=0)
             # add data to buffer
-            transition = (obs, obs_full, actions_for_buffer, rewards, next_obs, next_obs_full, dones)
-            
-            buffer.push(transition)
-            #print('Rewards:', rewards)
+            buffer.push(obs, obs_full, actions_for_env, rewards, next_obs, next_obs_full, dones)
+
             reward_this_episode += rewards
 
             obs = np.copy(next_obs)
@@ -93,9 +86,7 @@ def main():
             if len(buffer) > batchsize and episode>300 and episode % episode_per_update==0:
                 for a_i in range(number_of_agents):
                     samples = buffer.sample(batchsize)
-                    maddpg.update(samples, a_i, logger)
-                    maddpg.update_targets(a_i) #soft update the target network towards the actual networks
-
+                    maddpg.update(samples, a_i)
 
             if np.any(dones):
                 break
@@ -127,7 +118,6 @@ def main():
                            os.path.join(model_dir, 'episode-{}.pt'.format(episode)))
 
     env.close()
-    logger.close()
 
 if __name__=='__main__':
     main()
