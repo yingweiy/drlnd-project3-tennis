@@ -39,8 +39,8 @@ class MADDPG:
         actions = []
         for i in range(self.n_agents):
             agent = self.maddpg_agent[i]
-            obs = obs_all_agents[i,:]
-            action = agent.act(obs, noise)
+            obs = obs_all_agents[i,:].view(1,-1)
+            action = agent.act(obs, noise).squeeze()
             actions.append(action)
         return actions
 
@@ -69,9 +69,10 @@ class MADDPG:
 
 
         target_actions = self.target_act(next_obs)
-        q_next = agent.target_critic(next_obs_full, target_actions[0], target_actions[1]).squeeze()
+        with torch.no_grad():
+            q_next = agent.target_critic(next_obs_full, target_actions[0], target_actions[1]).squeeze()
         y = reward[:, agent_number].squeeze() + self.discount_factor * q_next * (1 - done[:, agent_number].squeeze())
-        q = agent.critic(obs_full, action[:,0,:], action[:,1,:])
+        q = agent.critic(obs_full, action[:,0,:], action[:,1,:]).squeeze()
         critic_loss = F.mse_loss(q, y)
         agent.critic_optimizer.zero_grad()
         critic_loss.backward()

@@ -21,22 +21,20 @@ def main():
     # change this to higher number to experiment. say 30000.
     number_of_episodes = 6000
     max_t = 1000
-    batchsize = 512
+    batchsize = 128
     
     # amplitude of OU noise
     # this slowly decreases to 0
     noise = 1
-    noise_reduction = 0.999
+    noise_reduction = 0.9999
 
     tau = 1e-3   # soft update factor
     gamma = 0.99 # reward discount factor
 
     # how many episodes before update
-    episode_per_update = 4
+    episode_per_update = 2
 
-    log_path = os.getcwd()+"/log"
     model_dir= os.getcwd()+"/model_dir"
-    
     os.makedirs(model_dir, exist_ok=True)
 
     # do we need to set multi-thread for this env?
@@ -45,7 +43,7 @@ def main():
     env = TennisEnv()
     
     # keep 5000 episodes worth of replay
-    buffer = ReplayBuffer(int(1e6))
+    buffer = ReplayBuffer(int(1e5))
     
     # initialize policy and critic
     maddpg = MADDPG(discount_factor=gamma, tau=tau)
@@ -64,11 +62,12 @@ def main():
         for episode_t in range(max_t):
             # explore = only explore for a certain number of episodes
             # action input needs to be transposed
+            #print('Obs:', obs)
             actions = maddpg.act(torch.tensor(obs, dtype=torch.float), noise=noise)
             #print(actions)
 
-            if noise>0.01:
-                noise *= noise_reduction
+            #if noise>0.01:
+            noise *= noise_reduction
             actions_for_env = torch.stack(actions).detach().numpy()
 
             # step forward one frame
@@ -83,7 +82,7 @@ def main():
             obs_full = np.copy(next_obs_full)
 
             # update once after every episode_per_update
-            if len(buffer) > batchsize and episode>300 and episode % episode_per_update==0:
+            if len(buffer) > batchsize and episode>0 and episode % episode_per_update==0:
                 for a_i in range(number_of_agents):
                     samples = buffer.sample(batchsize)
                     maddpg.update(samples, a_i)
@@ -93,7 +92,7 @@ def main():
 
         agent0_reward.append(reward_this_episode[0, 0])
         agent1_reward.append(reward_this_episode[0, 1])
-        avg_rewards = [np.mean(agent0_reward), np.mean(agent1_reward)]
+        avg_rewards = max(np.mean(agent0_reward), np.mean(agent1_reward))
         scores_window.append(avg_rewards)
         print('\rEpisode {}\tRwd:{:.2f}, {:.2f} Average Score: {:.4f} Noise:{:.2f}'.format(episode,
                                                                               reward_this_episode[0, 0],

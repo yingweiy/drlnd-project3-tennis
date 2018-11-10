@@ -20,11 +20,16 @@ class Actor(nn.Module):
             seed (int): Random seed
         """
         super(Actor, self).__init__()
-        fc = [512, 256, 128, 64]
+        fc = [256, 128, 128, 64]
+        self.bn = nn.BatchNorm1d(state_size)
         self.fc1 = nn.Linear(state_size, fc[0])
+        self.bn1 = nn.BatchNorm1d(fc[0])
         self.fc2 = nn.Linear(fc[0], fc[1])
+        self.bn2 = nn.BatchNorm1d(fc[1])
         self.fc3 = nn.Linear(fc[1], fc[2])
+        self.bn3 = nn.BatchNorm1d(fc[2])
         self.fc4 = nn.Linear(fc[2], fc[3])
+        self.bn4 = nn.BatchNorm1d(fc[3])
         self.fc5 = nn.Linear(fc[-1], action_size)
         self.reset_parameters()
 
@@ -37,7 +42,7 @@ class Actor(nn.Module):
 
     def forward(self, state):
         """Build an actor (policy) network that maps states -> actions."""
-        x = F.relu(self.fc1(state))
+        x = F.relu(self.fc1(self.bn(state)))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         x = F.relu(self.fc4(x))
@@ -57,10 +62,15 @@ class Critic(nn.Module):
         """
         super(Critic, self).__init__()
         fc = [512, 256, 128, 64]
+        self.bn = nn.BatchNorm1d(state_size)
         self.fc1 = nn.Linear(state_size+action_size, fc[0])
+        self.bn1 = nn.BatchNorm1d(fc[0])
         self.fc2 = nn.Linear(fc[0], fc[1])
+        self.bn2 = nn.BatchNorm1d(fc[1])
         self.fc3 = nn.Linear(fc[1], fc[2])
+        self.bn3 = nn.BatchNorm1d(fc[2])
         self.fc4 = nn.Linear(fc[2], fc[3])
+        self.bn4 = nn.BatchNorm1d(fc[3])
         self.fc5 = nn.Linear(fc[3], 1)
         self.reset_parameters()
 
@@ -73,7 +83,7 @@ class Critic(nn.Module):
 
     def forward(self, state, action1, action2):
         """Build a critic (value) network that maps (state, action) pairs -> Q-values."""
-        x = torch.cat((state, action1, action2), dim=1)
+        x = torch.cat((self.bn(state), action1, action2), dim=1)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
