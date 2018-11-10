@@ -50,6 +50,11 @@ def main():
 
     # training loop
     scores_window = deque(maxlen=100)
+    ep_scores = []
+
+    # when to save
+    save_on_scores = {5: False, 6: False, 9: False, 10: False}
+
     for episode in range(0, number_of_episodes):
         reward_this_episode = np.zeros((1, number_of_agents))
         obs, obs_full, env_info = env.reset()
@@ -92,19 +97,26 @@ def main():
 
         agent0_reward.append(reward_this_episode[0, 0])
         agent1_reward.append(reward_this_episode[0, 1])
-        avg_rewards = max(np.mean(agent0_reward), np.mean(agent1_reward))
+        avg_rewards = max(reward_this_episode[0, 0], reward_this_episode[0, 1])
         scores_window.append(avg_rewards)
-        print('\rEpisode {}\tRwd:{:.2f}, {:.2f} Average Score: {:.4f} Noise:{:.2f}'.format(episode,
+        cur_score = np.mean(scores_window)
+        ep_scores.append(cur_score)
+        print('\rEpisode:{}, Rwd:{:.3f} vs. {:.3f}, Average Score:{:.4f}, Noise:{:.4f}'.format(episode,
                                                                               reward_this_episode[0, 0],
                                                                               reward_this_episode[0, 1],
-                                                                              np.mean(scores_window),
-                                                                                           noise)
-              )
-
+                                                                              cur_score,noise))
 
         #saving model
+
+
+
         save_dict_list =[]
         save_info = False
+        score_code = int(cur_score * 10)
+        if score_code in save_on_scores.keys():
+            if not(save_on_scores[score_code]):
+                save_on_scores[score_code] = True
+                save_info = True
         if save_info:
             for i in range(number_of_agents):
                 save_dict = {'actor_params' : maddpg.maddpg_agent[i].actor.state_dict(),
@@ -115,6 +127,11 @@ def main():
 
                 torch.save(save_dict_list, 
                            os.path.join(model_dir, 'episode-{}.pt'.format(episode)))
+
+            np.savez('scores.npy',  agent0_reward = np.array(agent0_reward),
+                                    agent1_reward = np.array(agent1_reward),
+                                    avg_max_scores = np.array(ep_scores))
+
 
     env.close()
 
