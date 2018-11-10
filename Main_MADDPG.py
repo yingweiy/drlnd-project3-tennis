@@ -57,11 +57,13 @@ def main():
                       12: False, 13: False, 14: False, 15: False, 16:False,
                       17: False, 18: False, 19: False, 20: False}
 
+    agent0_reward = []
+    agent1_reward = []
+
     for episode in range(0, number_of_episodes):
         reward_this_episode = np.zeros((1, number_of_agents))
         obs, obs_full, env_info = env.reset()
-        agent0_reward = []
-        agent1_reward = []
+
 
         for agent in maddpg.maddpg_agent:
             agent.noise.reset()
