@@ -52,7 +52,7 @@ def main():
     scores_window = deque(maxlen=100)
     ep_scores = []
 
-    # when to save
+    # when to save: use a dictionary to track if a model at a given score (key/10) has been saved.
     save_on_scores = {5: False, 6: False, 9: False, 10: False, 11:False,
                       12: False, 13: False, 14: False, 15: False, 16:False,
                       17: False, 18: False, 19: False, 20: False}

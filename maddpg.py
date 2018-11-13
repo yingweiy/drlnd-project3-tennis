@@ -65,9 +65,8 @@ class MADDPG:
         # action: Nx2x2
         # done, reward: Nx2
 
-        agent_critic = self.maddpg_agent[0]
-        agent = self.maddpg_agent[agent_number]
-
+        agent_critic = self.maddpg_agent[0] # This is the shared critic
+        agent = self.maddpg_agent[agent_number] # this is for the actor
 
         target_actions = self.target_act(next_obs)
         with torch.no_grad():
